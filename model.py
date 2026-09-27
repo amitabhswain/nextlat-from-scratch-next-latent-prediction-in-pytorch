@@ -548,8 +548,34 @@ def latent_transition(h, x_emb, dyn: dict):
 
     return delta + h
 
-# Step 16 - rollout_latents (not yet solved)
-# TODO: implement
+# Step 16 - rollout_latents
+def rollout_latents(h, x, params: dict, dyn: dict, d_steps: int) -> list:
+    """
+    Recursively roll the latent transition forward d_steps steps from every
+    start position, feeding predictions back in (not the true hidden states).
+
+    Args:
+        h: (B, T, d) hidden states aligned with input tokens x
+        x: (B, T) long, input token ids
+        params: GPT parameter dict (used here just for 'wte')
+        dyn: dynamics parameter dict from init_dynamics_params
+        d_steps: rollout horizon
+
+    Returns:
+        List of d_steps tensors, each (B, T-d_steps, d). The i-th entry
+        (1-indexed) predicts h[:, i:T-d_steps+i].
+    """
+    B, T, d = h.shape
+
+    h_hat = h[:, :T - d_steps]
+    outs = []
+
+    for i in range(1, d_steps + 1):
+        emb = params['wte'][x[:, i:T - d_steps + i]]
+        h_hat = latent_transition(h_hat, emb, dyn)
+        outs.append(h_hat)
+
+    return outs
 
 # Step 17 - next_hidden_loss (not yet solved)
 # TODO: implement
