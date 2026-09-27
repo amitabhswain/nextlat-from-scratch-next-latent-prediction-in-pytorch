@@ -41,8 +41,25 @@ def grid_step(pos: tuple, action: int, G: int) -> tuple:
     else:
         return (int(row), int(col)), False
 
-# Step 2 - legal_actions (not yet solved)
-# TODO: implement
+# Step 2 - legal_actions
+def legal_actions(pos: tuple, G: int) -> list:
+    """
+    Return the sorted list of legal action ids from a position on a G x G grid.
+
+    Args:
+        pos: (row, col) current position
+        G: grid size
+
+    Returns:
+        Sorted list of action ids (subset of [0, 1, 2, 3]) that are legal from pos.
+    """
+    legal = []
+    for action in range(4):
+        _, is_legal = grid_step(pos, action, G)
+        if is_legal:
+            legal.append(action)
+
+    return sorted(legal)
 
 # Step 3 - random_walk_to_goal (not yet solved)
 # TODO: implement
