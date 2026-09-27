@@ -310,8 +310,65 @@ def init_gpt_params(vocab_size: int, d_model: int, n_layers: int, max_len: int, 
 
     return params
 
-# Step 9 - attention_block (not yet solved)
-# TODO: implement
+# Step 9 - attention_block
+import torch
+import torch.nn.functional as F
+import math
+
+def attention_block(x, params: dict, layer: int, n_heads: int):
+    """
+    One pre-LayerNorm causal multi-head self-attention block with a residual
+    connection: x + Proj(CausalMultiHeadAttn(LayerNorm(x))).
+
+    Args:
+        x: (B, T, d) input
+        params: parameter dict from init_gpt_params
+        layer: which layer's parameters to use
+        n_heads: number of attention heads (d must be divisible by n_heads)
+
+    Returns:
+        (B, T, d) output
+    """
+    B, T, d = x.shape
+    head_dim = d // n_heads
+
+    ln1_w = params[f'ln1_w{layer}']
+    ln1_b = params[f'ln1_b{layer}']
+    qkv_w = params[f'qkv_w{layer}']
+    qkv_b = params[f'qkv_b{layer}']
+    proj_w = params[f'proj_w{layer}']
+    proj_b = params[f'proj_b{layer}']
+
+    # Pre-LayerNorm
+    z = F.layer_norm(x, (d,), ln1_w, ln1_b, eps=1e-5)
+
+    # Fused QKV projection, then split
+    qkv = z @ qkv_w + qkv_b            # (B, T, 3*d)
+    q, k, v = qkv.split(d, dim=-1)     # each (B, T, d)
+
+    # Reshape into heads: (B, T, n_heads, head_dim) -> (B, n_heads, T, head_dim)
+    q = q.reshape(B, T, n_heads, head_dim).transpose(1, 2)
+    k = k.reshape(B, T, n_heads, head_dim).transpose(1, 2)
+    v = v.reshape(B, T, n_heads, head_dim).transpose(1, 2)
+
+    # Scaled dot-product attention scores
+    scores = q @ k.transpose(-2, -1) / math.sqrt(head_dim)  # (B, n_heads, T, T)
+
+    # Causal mask: block attending to future positions
+    mask = causal_mask(T).to(x.device)          # (T, T), True = allowed
+    scores = scores.masked_fill(~mask, float('-inf'))
+
+    attn = F.softmax(scores, dim=-1)
+    out = attn @ v                                # (B, n_heads, T, head_dim)
+
+    # Merge heads back
+    out = out.transpose(1, 2).reshape(B, T, d)    # (B, T, d)
+
+    # Output projection
+    out = out @ proj_w + proj_b
+
+    # Residual connection
+    return x + out
 
 # Step 10 - mlp_block (not yet solved)
 # TODO: implement
