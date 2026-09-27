@@ -729,8 +729,34 @@ def nextlat_loss(batch: dict, params: dict, dyn: dict, n_heads: int, d_steps: in
         'kl': kl
     }
 
-# Step 20 - train_step (not yet solved)
-# TODO: implement
+# Step 20 - train_step
+def train_step(batch: dict, params: dict, dyn: dict, opt, n_heads: int, d_steps: int,
+               lam_h: float, lam_kl: float, beta: float = 1.0) -> dict:
+    """
+    Perform one optimizer update on the NextLat objective.
+
+    Args:
+        batch: dict with 'x', 'y', 'mask' from get_batch
+        params: GPT parameter dict
+        dyn: dynamics parameter dict
+        opt: torch.optim optimizer holding both params' and dyn's tensors
+        n_heads: number of attention heads
+        d_steps: rollout horizon
+        lam_h: weight on next-hidden loss
+        lam_kl: weight on KL alignment loss
+        beta: Smooth L1 beta parameter
+
+    Returns:
+        dict with keys 'total', 'next_token', 'next_h', 'kl', each a Python float.
+    """
+    opt.zero_grad()
+
+    out = nextlat_loss(batch, params, dyn, n_heads, d_steps, lam_h, lam_kl, beta)
+
+    out['total'].backward()
+    opt.step()
+
+    return {k: v.item() for k, v in out.items()}
 
 # Step 21 - train_model (not yet solved)
 # TODO: implement
