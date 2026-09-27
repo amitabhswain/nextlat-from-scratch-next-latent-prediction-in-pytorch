@@ -139,8 +139,69 @@ def encode_sequence(start: tuple, goal: tuple, moves: list, G: int, T: int) -> t
 
     return tokens, mask
 
-# Step 5 - make_dataset (not yet solved)
-# TODO: implement
+# Step 5 - make_dataset
+import numpy as np
+import torch
+
+def make_dataset(n: int, G: int, T: int, seed: int = 0) -> dict:
+    """
+    Generate n encoded goal-directed walks on a G x G grid, plus the true
+    cell index the walker occupies after consuming every token.
+
+    Args:
+        n: number of walks (dataset size)
+        G: grid size
+        T: fixed encoded sequence length
+        seed: RNG seed
+
+    Returns:
+        dict with:
+            'tokens': (n, T) long
+            'mask':   (n, T) bool
+            'states': (n, T) long  -- cell index row*G+col after each token
+            'G': int
+    """
+    rng = np.random.default_rng(seed)
+    max_len = T - 3
+
+    all_tokens = []
+    all_masks = []
+    all_states = []
+
+    for _ in range(n):
+        start = tuple(int(x) for x in rng.integers(0, G, size=2))
+        goal = tuple(int(x) for x in rng.integers(0, G, size=2))
+
+        moves = random_walk_to_goal(start, goal, G, max_len, rng)
+        tokens, mask = encode_sequence(start, goal, moves, G, T)
+
+        states_row = torch.zeros(T, dtype=torch.long)
+
+        pos = start
+        cell_idx = pos[0] * G + pos[1]
+        states_row[0] = cell_idx  # start token: walker hasn't moved
+        states_row[1] = cell_idx  # goal token: walker still hasn't moved
+
+        for j, action in enumerate(moves):
+            pos, _ = grid_step(pos, action, G)
+            states_row[2 + j] = pos[0] * G + pos[1]
+
+        # EOS and any padding: position stays fixed at wherever the walk ended
+        last_filled = 2 + len(moves)
+        final_cell_idx = pos[0] * G + pos[1]
+        for k in range(last_filled, T):
+            states_row[k] = final_cell_idx
+
+        all_tokens.append(tokens)
+        all_masks.append(mask)
+        all_states.append(states_row)
+
+    return {
+        'tokens': torch.stack(all_tokens),
+        'mask': torch.stack(all_masks),
+        'states': torch.stack(all_states),
+        'G': G
+    }
 
 # Step 6 - get_batch (not yet solved)
 # TODO: implement
