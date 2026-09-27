@@ -623,8 +623,60 @@ def next_hidden_loss(h, h_hats: list, mask, beta: float = 1.0):
 
     return total
 
-# Step 18 - kl_alignment_loss (not yet solved)
-# TODO: implement
+# Step 18 - kl_alignment_loss
+import torch
+import torch.nn.functional as F
+
+def kl_alignment_loss(h, h_hats: list, mask, params: dict):
+    """
+    Forward KL divergence, in token space, between the distributions induced
+    by the real and predicted latents, using a frozen (detached) output head.
+
+    Args:
+        h: (B, T, d) real hidden states
+        h_hats: list of d_steps predicted tensors from rollout_latents,
+                 each (B, T-d_steps, d)
+        mask: (B, T) bool, True at real (non-padding) input positions
+        params: GPT parameter dict (contains 'head_w', 'head_b')
+
+    Returns:
+        0-dim tensor loss; torch.tensor(0.0) if h_hats is empty.
+    """
+    d_steps = len(h_hats)
+
+    if d_steps == 0:
+        return torch.tensor(0.0)
+
+    B, T, d = h.shape
+
+    frozen = {
+        'head_w': params['head_w'].detach(),
+        'head_b': params['head_b'].detach()
+    }
+
+    step_losses = []
+
+    for idx in range(d_steps):
+        i = idx + 1  # 1-based step index
+
+        h_true_slice = h[:, i:T - d_steps + i].detach()
+        h_pred_slice = h_hats[idx]
+        m = mask[:, i:T - d_steps + i].float()
+
+        logits_true = output_head(h_true_slice, frozen)
+        logits_pred = output_head(h_pred_slice, frozen)
+
+        lp = F.log_softmax(logits_true, dim=-1)
+        lq = F.log_softmax(logits_pred, dim=-1)
+
+        kl = (lp.exp() * (lp - lq)).sum(dim=-1)  # (B, T-d_steps)
+
+        masked_mean = (kl * m).sum() / m.sum()
+        step_losses.append(masked_mean)
+
+    total = torch.stack(step_losses).mean()
+
+    return total
 
 # Step 19 - nextlat_loss (not yet solved)
 # TODO: implement
