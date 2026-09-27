@@ -408,8 +408,40 @@ def mlp_block(x, params: dict, layer: int):
     # Residual connection
     return x + out
 
-# Step 11 - gpt_hidden_states (not yet solved)
-# TODO: implement
+# Step 11 - gpt_hidden_states
+import torch
+import torch.nn.functional as F
+
+def gpt_hidden_states(tokens, params: dict, n_heads: int):
+    """
+    Run the full transformer and return the final hidden states (B, T, d).
+
+    Args:
+        tokens: (B, T) long tensor of token ids
+        params: parameter dict from init_gpt_params
+        n_heads: number of attention heads
+
+    Returns:
+        (B, T, d) hidden states h_t -- the pre-logit activations that
+        parameterize the next-token distribution at each position.
+    """
+    B, T = tokens.shape
+
+    n_layers = sum(1 for k in params if k.startswith('ln1_w'))
+
+    # Token + position embeddings
+    x = params['wte'][tokens] + params['wpe'][:T]
+
+    # Stack of pre-LN transformer blocks
+    for layer in range(n_layers):
+        x = attention_block(x, params, layer, n_heads)
+        x = mlp_block(x, params, layer)
+
+    # Final LayerNorm
+    d = x.shape[-1]
+    h = F.layer_norm(x, (d,), params['lnf_w'], params['lnf_b'], eps=1e-5)
+
+    return h
 
 # Step 12 - output_head (not yet solved)
 # TODO: implement
