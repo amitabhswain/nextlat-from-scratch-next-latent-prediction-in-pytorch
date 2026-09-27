@@ -492,8 +492,35 @@ def next_token_loss(logits, targets, mask):
 
     return masked_loss
 
-# Step 14 - init_dynamics_params (not yet solved)
-# TODO: implement
+# Step 14 - init_dynamics_params
+import torch
+
+def init_dynamics_params(d_model: int, hidden: int, seed: int = 0) -> dict:
+    """
+    Create the parameter dictionary for the latent transition MLP (p_psi).
+
+    Args:
+        d_model: dimension of the GPT hidden states
+        hidden: hidden layer width of the dynamics MLP
+        seed: RNG seed
+
+    Returns:
+        dict with keys 'W1','b1','W2','b2','W3','b3', all float32, requires_grad=True.
+    """
+    torch.manual_seed(seed)
+
+    dyn = {}
+
+    dyn['W1'] = (torch.randn(2 * d_model, hidden) * 0.02).float().requires_grad_(True)
+    dyn['b1'] = torch.zeros(hidden, dtype=torch.float32).requires_grad_(True)
+
+    dyn['W2'] = (torch.randn(hidden, hidden) * 0.02).float().requires_grad_(True)
+    dyn['b2'] = torch.zeros(hidden, dtype=torch.float32).requires_grad_(True)
+
+    dyn['W3'] = (torch.randn(hidden, d_model) * 0.02).float().requires_grad_(True)
+    dyn['b3'] = torch.zeros(d_model, dtype=torch.float32).requires_grad_(True)
+
+    return dyn
 
 # Step 15 - latent_transition (not yet solved)
 # TODO: implement
