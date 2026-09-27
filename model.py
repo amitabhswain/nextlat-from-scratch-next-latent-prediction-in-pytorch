@@ -678,8 +678,56 @@ def kl_alignment_loss(h, h_hats: list, mask, params: dict):
 
     return total
 
-# Step 19 - nextlat_loss (not yet solved)
-# TODO: implement
+# Step 19 - nextlat_loss
+import torch
+
+def nextlat_loss(batch: dict, params: dict, dyn: dict, n_heads: int, d_steps: int,
+                 lam_h: float, lam_kl: float, beta: float = 1.0) -> dict:
+    """
+    Compute the full NextLat training objective on one batch:
+    total = next_token + lam_h * next_h + lam_kl * kl
+
+    Args:
+        batch: dict with 'x' (B, T), 'y' (B, T), 'mask' (B, T) from get_batch
+        params: GPT parameter dict
+        dyn: dynamics parameter dict
+        n_heads: number of attention heads
+        d_steps: rollout horizon (0 disables the auxiliary terms entirely)
+        lam_h: weight on the next-hidden Smooth L1 loss
+        lam_kl: weight on the KL alignment loss
+        beta: Smooth L1 beta parameter
+
+    Returns:
+        dict of 0-dim tensors: 'total', 'next_token', 'next_h', 'kl'
+    """
+    x = batch['x']
+    y = batch['y']
+    mask = batch['mask']
+
+    h = gpt_hidden_states(x, params, n_heads)
+    logits = output_head(h, params)
+    next_token = next_token_loss(logits, y, mask)
+
+    if d_steps > 0:
+        eos = params['head_b'].shape[0] - 1
+        mask_x = x != eos
+
+        hats = rollout_latents(h, x, params=params, dyn=dyn, d_steps=d_steps)
+
+        next_h = next_hidden_loss(h, hats, mask_x, beta=beta)
+        kl = kl_alignment_loss(h, hats, mask_x, params)
+    else:
+        next_h = torch.tensor(0.0)
+        kl = torch.tensor(0.0)
+
+    total = next_token + lam_h * next_h + lam_kl * kl
+
+    return {
+        'total': total,
+        'next_token': next_token,
+        'next_h': next_h,
+        'kl': kl
+    }
 
 # Step 20 - train_step (not yet solved)
 # TODO: implement
