@@ -241,8 +241,23 @@ def get_batch(dataset: dict, batch_size: int, step: int) -> dict:
         'states': x_states
     }
 
-# Step 7 - causal_mask (not yet solved)
-# TODO: implement
+# Step 7 - causal_mask
+import torch
+
+def causal_mask(T: int):
+    """
+    Return a (T, T) bool tensor, True where key index <= query index.
+
+    Row i = query position i, column j = key position j.
+    Entry (i, j) is True exactly when j <= i (lower-triangular, including diagonal).
+
+    Args:
+        T: sequence length
+
+    Returns:
+        (T, T) torch.bool tensor
+    """
+    return torch.tril(torch.ones(T, T, dtype=torch.bool))
 
 # Step 8 - init_gpt_params (not yet solved)
 # TODO: implement
