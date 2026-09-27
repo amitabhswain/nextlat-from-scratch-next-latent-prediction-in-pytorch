@@ -522,8 +522,31 @@ def init_dynamics_params(d_model: int, hidden: int, seed: int = 0) -> dict:
 
     return dyn
 
-# Step 15 - latent_transition (not yet solved)
-# TODO: implement
+# Step 15 - latent_transition
+import torch
+import torch.nn.functional as F
+
+def latent_transition(h, x_emb, dyn: dict):
+    """
+    Predict the next hidden state as a residual delta:
+    h_hat_{t+1} = f_psi(h_t, x_{t+1}) + h_t
+
+    Args:
+        h: (..., d_model) current hidden state
+        x_emb: (..., d_model) embedding of the next token
+        dyn: parameter dict from init_dynamics_params
+
+    Returns:
+        (..., d_model) predicted next hidden state
+    """
+    z = torch.cat([h, x_emb], dim=-1)                       # (..., 2*d_model)
+    z = F.layer_norm(z, (z.shape[-1],), eps=1e-5)            # no learned scale/shift
+
+    a1 = F.gelu(z @ dyn['W1'] + dyn['b1'], approximate='tanh')
+    a2 = F.gelu(a1 @ dyn['W2'] + dyn['b2'], approximate='tanh')
+    delta = a2 @ dyn['W3'] + dyn['b3']
+
+    return delta + h
 
 # Step 16 - rollout_latents (not yet solved)
 # TODO: implement
