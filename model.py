@@ -577,8 +577,51 @@ def rollout_latents(h, x, params: dict, dyn: dict, d_steps: int) -> list:
 
     return outs
 
-# Step 17 - next_hidden_loss (not yet solved)
-# TODO: implement
+# Step 17 - next_hidden_loss
+import torch
+import torch.nn.functional as F
+
+def next_hidden_loss(h, h_hats: list, mask, beta: float = 1.0):
+    """
+    Stop-gradient Smooth L1 loss between rolled-out latents and the real
+    hidden states, averaged over masked positions and rollout steps.
+
+    Args:
+        h: (B, T, d) real hidden states
+        h_hats: list of d_steps predicted tensors from rollout_latents,
+                 each (B, T-d_steps, d)
+        mask: (B, T) bool, True at real (non-padding) input positions
+        beta: Smooth L1 transition point
+
+    Returns:
+        0-dim tensor loss; torch.tensor(0.0) if h_hats is empty.
+    """
+    d_steps = len(h_hats)
+
+    if d_steps == 0:
+        return torch.tensor(0.0)
+
+    B, T, d = h.shape
+
+    step_losses = []
+
+    for idx in range(d_steps):
+        i = idx + 1  # 1-based step index
+
+        target = h[:, i:T - d_steps + i].detach()
+        m = mask[:, i:T - d_steps + i].float()
+
+        pred = h_hats[idx]
+
+        per_elem = F.smooth_l1_loss(pred, target, reduction='none', beta=beta)  # (B, T-d_steps, d)
+        per_position = per_elem.mean(dim=-1)  # (B, T-d_steps)
+
+        masked_mean = (per_position * m).sum() / m.sum()
+        step_losses.append(masked_mean)
+
+    total = torch.stack(step_losses).mean()
+
+    return total
 
 # Step 18 - kl_alignment_loss (not yet solved)
 # TODO: implement
