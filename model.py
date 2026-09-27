@@ -457,8 +457,40 @@ def output_head(h, params: dict):
     """
     return h @ params['head_w'] + params['head_b']
 
-# Step 13 - next_token_loss (not yet solved)
-# TODO: implement
+# Step 13 - next_token_loss
+import torch
+import torch.nn.functional as F
+
+def next_token_loss(logits, targets, mask):
+    """
+    Masked mean cross-entropy between logits and targets.
+
+    Args:
+        logits: (B, T, V) raw (unnormalized) logits
+        targets: (B, T) long, target token ids
+        mask: (B, T) bool, True where the position should be scored
+
+    Returns:
+        0-dim tensor: mean cross-entropy over masked-in positions,
+        or torch.tensor(0.0) if no position is masked in.
+    """
+    B, T, V = logits.shape
+
+    per_position_loss = F.cross_entropy(
+        logits.reshape(-1, V),
+        targets.reshape(-1),
+        reduction='none'
+    )  # (B*T,)
+
+    mask_flat = mask.reshape(-1).float()
+
+    total_mask = mask_flat.sum()
+    if total_mask.item() == 0:
+        return torch.tensor(0.0)
+
+    masked_loss = (per_position_loss * mask_flat).sum() / total_mask
+
+    return masked_loss
 
 # Step 14 - init_dynamics_params (not yet solved)
 # TODO: implement
