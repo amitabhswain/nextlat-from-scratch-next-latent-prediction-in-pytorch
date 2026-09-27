@@ -259,8 +259,56 @@ def causal_mask(T: int):
     """
     return torch.tril(torch.ones(T, T, dtype=torch.bool))
 
-# Step 8 - init_gpt_params (not yet solved)
-# TODO: implement
+# Step 8 - init_gpt_params
+import torch
+
+def init_gpt_params(vocab_size: int, d_model: int, n_layers: int, max_len: int, seed: int = 0) -> dict:
+    """
+    Create the parameter dictionary for a small pre-LN GPT.
+
+    Args:
+        vocab_size: size of the token vocabulary
+        d_model: model (embedding) dimension
+        n_layers: number of transformer blocks
+        max_len: maximum sequence length (for position embeddings)
+        seed: RNG seed for reproducibility
+
+    Returns:
+        dict of float32, requires_grad=True tensors, keyed as described.
+    """
+    torch.manual_seed(seed)
+
+    params = {}
+
+    params['wte'] = (torch.randn(vocab_size, d_model) * 0.02).float().requires_grad_(True)
+    params['wpe'] = (torch.randn(max_len, d_model) * 0.02).float().requires_grad_(True)
+
+    for l in range(n_layers):
+        params[f'ln1_w{l}'] = torch.ones(d_model, dtype=torch.float32).requires_grad_(True)
+        params[f'ln1_b{l}'] = torch.zeros(d_model, dtype=torch.float32).requires_grad_(True)
+
+        params[f'qkv_w{l}'] = (torch.randn(d_model, 3 * d_model) * 0.02).float().requires_grad_(True)
+        params[f'qkv_b{l}'] = torch.zeros(3 * d_model, dtype=torch.float32).requires_grad_(True)
+
+        params[f'proj_w{l}'] = (torch.randn(d_model, d_model) * 0.02).float().requires_grad_(True)
+        params[f'proj_b{l}'] = torch.zeros(d_model, dtype=torch.float32).requires_grad_(True)
+
+        params[f'ln2_w{l}'] = torch.ones(d_model, dtype=torch.float32).requires_grad_(True)
+        params[f'ln2_b{l}'] = torch.zeros(d_model, dtype=torch.float32).requires_grad_(True)
+
+        params[f'fc_w{l}'] = (torch.randn(d_model, 4 * d_model) * 0.02).float().requires_grad_(True)
+        params[f'fc_b{l}'] = torch.zeros(4 * d_model, dtype=torch.float32).requires_grad_(True)
+
+        params[f'fc2_w{l}'] = (torch.randn(4 * d_model, d_model) * 0.02).float().requires_grad_(True)
+        params[f'fc2_b{l}'] = torch.zeros(d_model, dtype=torch.float32).requires_grad_(True)
+
+    params['lnf_w'] = torch.ones(d_model, dtype=torch.float32).requires_grad_(True)
+    params['lnf_b'] = torch.zeros(d_model, dtype=torch.float32).requires_grad_(True)
+
+    params['head_w'] = (torch.randn(d_model, vocab_size) * 0.02).float().requires_grad_(True)
+    params['head_b'] = torch.zeros(vocab_size, dtype=torch.float32).requires_grad_(True)
+
+    return params
 
 # Step 9 - attention_block (not yet solved)
 # TODO: implement
