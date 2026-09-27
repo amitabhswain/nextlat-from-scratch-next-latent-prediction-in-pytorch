@@ -94,8 +94,50 @@ def random_walk_to_goal(start: tuple, goal: tuple, G: int, max_len: int, rng) ->
 
     return actions_taken
 
-# Step 4 - encode_sequence (not yet solved)
-# TODO: implement
+# Step 4 - encode_sequence
+import torch
+
+def encode_sequence(start: tuple, goal: tuple, moves: list, G: int, T: int) -> tuple:
+    """
+    Build [start_cell, goal_cell, moves..., EOS, pad...] as a (T,) long tensor plus a bool mask.
+
+    Vocabulary:
+        actions: 0..3
+        cell tokens: 4 + row*G + col
+        EOS (also used as padding): 4 + G*G
+
+    Args:
+        start: (row, col) start position
+        goal: (row, col) goal position
+        moves: list of action ids taken
+        G: grid size
+        T: fixed output sequence length
+
+    Returns:
+        (tokens, mask): tokens is torch.long shape (T,), mask is torch.bool shape (T,)
+    """
+    EOS = 4 + G * G
+
+    def cell(pos):
+        row, col = pos
+        return 4 + row * G + col
+
+    base = [cell(start), cell(goal)] + list(moves)
+
+    # Truncate so that one EOS still fits within length T
+    base = base[:T - 1]
+
+    real_tokens = base + [EOS]
+    num_real = len(real_tokens)
+
+    # Pad with EOS up to length T
+    pad_len = T - num_real
+    tokens_list = real_tokens + [EOS] * pad_len
+
+    tokens = torch.tensor(tokens_list, dtype=torch.long)
+    mask = torch.tensor([True] * num_real + [False] * pad_len, dtype=torch.bool)
+
+    return tokens, mask
 
 # Step 5 - make_dataset (not yet solved)
 # TODO: implement
