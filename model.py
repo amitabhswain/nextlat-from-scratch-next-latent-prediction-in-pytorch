@@ -443,8 +443,19 @@ def gpt_hidden_states(tokens, params: dict, n_heads: int):
 
     return h
 
-# Step 12 - output_head (not yet solved)
-# TODO: implement
+# Step 12 - output_head
+def output_head(h, params: dict):
+    """
+    Map hidden states to next-token logits: h @ head_w + head_b.
+
+    Args:
+        h: (..., d) hidden states, any number of leading dimensions
+        params: parameter dict containing 'head_w' (d, vocab_size) and 'head_b' (vocab_size,)
+
+    Returns:
+        (..., vocab_size) logits
+    """
+    return h @ params['head_w'] + params['head_b']
 
 # Step 13 - next_token_loss (not yet solved)
 # TODO: implement
