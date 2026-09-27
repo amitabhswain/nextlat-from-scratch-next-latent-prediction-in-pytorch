@@ -61,8 +61,38 @@ def legal_actions(pos: tuple, G: int) -> list:
 
     return sorted(legal)
 
-# Step 3 - random_walk_to_goal (not yet solved)
-# TODO: implement
+# Step 3 - random_walk_to_goal
+def random_walk_to_goal(start: tuple, goal: tuple, G: int, max_len: int, rng) -> list:
+    """
+    Generate a random sequence of legal moves from start until goal is reached
+    or max_len moves have been taken.
+
+    Args:
+        start: (row, col) starting position
+        goal: (row, col) goal position
+        G: grid size
+        max_len: maximum number of moves to take
+        rng: np.random.Generator instance
+
+    Returns:
+        List of action ids taken (possibly empty if start == goal).
+    """
+    if start == goal:
+        return []
+
+    actions_taken = []
+    pos = start
+
+    for _ in range(max_len):
+        actions = legal_actions(pos, G)
+        action = int(rng.choice(actions))
+        pos, _ = grid_step(pos, action, G)
+        actions_taken.append(action)
+
+        if pos == goal:
+            break
+
+    return actions_taken
 
 # Step 4 - encode_sequence (not yet solved)
 # TODO: implement
