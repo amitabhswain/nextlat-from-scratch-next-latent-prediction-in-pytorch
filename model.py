@@ -203,8 +203,43 @@ def make_dataset(n: int, G: int, T: int, seed: int = 0) -> dict:
         'G': G
     }
 
-# Step 6 - get_batch (not yet solved)
-# TODO: implement
+# Step 6 - get_batch
+def get_batch(dataset: dict, batch_size: int, step: int) -> dict:
+    """
+    Slice a deterministic training batch out of the dataset, cyclically by row,
+    and return the next-token-prediction shifted views.
+
+    Args:
+        dataset: dict with 'tokens' (n, T), 'mask' (n, T), 'states' (n, T), 'G'
+        batch_size: number of rows in the batch
+        step: which batch step (determines which rows are selected, cyclically)
+
+    Returns:
+        dict with:
+            'x': tokens[:, :-1] for the selected rows      -> (batch_size, T-1)
+            'y': tokens[:, 1:]  for the selected rows      -> (batch_size, T-1)
+            'mask': mask[:, 1:] for the selected rows      -> (batch_size, T-1)
+            'states': states[:, :-1] for the selected rows -> (batch_size, T-1)
+    """
+    n = dataset['tokens'].shape[0]
+
+    indices = [(step * batch_size + i) % n for i in range(batch_size)]
+
+    tokens = dataset['tokens'][indices]
+    mask = dataset['mask'][indices]
+    states = dataset['states'][indices]
+
+    x = tokens[:, :-1]
+    y = tokens[:, 1:]
+    y_mask = mask[:, 1:]
+    x_states = states[:, :-1]
+
+    return {
+        'x': x,
+        'y': y,
+        'mask': y_mask,
+        'states': x_states
+    }
 
 # Step 7 - causal_mask (not yet solved)
 # TODO: implement
