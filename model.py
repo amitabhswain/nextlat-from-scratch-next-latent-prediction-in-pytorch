@@ -1056,8 +1056,45 @@ def detour_robustness(params: dict, n_heads: int, G: int, max_steps: int, n_tria
 
     return successes / n_trials
 
-# Step 28 - world_model_report (not yet solved)
-# TODO: implement
+# Step 28 - world_model_report
+def world_model_report(dataset: dict, params: dict, n_heads: int, n_rows: int, n_tokens: int,
+                       max_pairs: int, n_trials: int, seed: int = 0) -> dict:
+    """
+    Bundle the four world-model metrics into one dict, each rounded to 4 decimals.
+
+    Args:
+        dataset: dict with 'tokens', 'mask', 'states', 'G'
+        params: GPT parameter dict
+        n_heads: number of attention heads
+        n_rows: number of sequences for the legality and effective-rank metrics
+        n_tokens: continuation length for the compression metric
+        max_pairs: maximum prefix pairs for the compression metric
+        n_trials: number of episodes for the detour metric
+        seed: RNG seed for the detour metric
+
+    Returns:
+        dict with keys 'valid_move_rate', 'effective_rank',
+        'sequence_compression', 'detour_robustness'.
+    """
+    G = dataset['G']
+    T = dataset['tokens'].shape[1]
+
+    vmr = valid_move_rate(dataset, params, n_heads, n_rows)
+
+    H = eval_hidden_states(dataset, params, n_heads, n_rows)
+    erank = effective_rank(H)
+
+    seq_comp = sequence_compression(dataset, params, n_heads, n_tokens, max_pairs)
+
+    detour = detour_robustness(params, n_heads, G, max_steps=T - 3,
+                               n_trials=n_trials, detour_prob=0.75, seed=seed)
+
+    return {
+        'valid_move_rate': round(vmr, 4),
+        'effective_rank': round(erank, 4),
+        'sequence_compression': round(seq_comp, 4),
+        'detour_robustness': round(detour, 4),
+    }
 
 # Step 29 - draft_from_latent (not yet solved)
 # TODO: implement
