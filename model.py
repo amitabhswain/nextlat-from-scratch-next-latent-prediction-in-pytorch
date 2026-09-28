@@ -944,8 +944,59 @@ def valid_move_rate(dataset: dict, params: dict, n_heads: int, n_rows: int) -> f
 
     return legal_count / total
 
-# Step 26 - sequence_compression (not yet solved)
-# TODO: implement
+# Step 26 - sequence_compression
+def sequence_compression(dataset: dict, params: dict, n_heads: int, n_tokens: int, max_pairs: int) -> float:
+    """
+    Fraction of prefix pairs that reach the same true state with the same goal
+    for which greedy decoding produces identical continuations.
+
+    Args:
+        dataset: dict with 'tokens', 'mask', 'states', 'G'
+        params: GPT parameter dict
+        n_heads: number of attention heads
+        n_tokens: number of tokens to decode from each prefix
+        max_pairs: maximum number of pairs to evaluate
+
+    Returns:
+        Float in [0, 1]; 0.0 if there are no pairs.
+    """
+    tokens = dataset['tokens']
+    mask = dataset['mask']
+    states = dataset['states']
+    n, T = tokens.shape
+
+    groups = {}
+
+    for i in range(n):
+        for t in range(2, T):
+            if not bool(mask[i, t]):
+                continue
+            if int(tokens[i, t]) >= 4:
+                continue
+            if t + 1 + n_tokens > T:
+                continue
+
+            prefix = tokens[i, :t + 1].tolist()
+            key = (int(states[i, t]), int(tokens[i, 1]))
+
+            if key not in groups:
+                groups[key] = [prefix]
+            elif len(groups[key]) < 2 and prefix != groups[key][0]:
+                groups[key].append(prefix)
+
+    pairs = [v for v in groups.values() if len(v) == 2][:max_pairs]
+
+    if len(pairs) == 0:
+        return 0.0
+
+    matches = 0
+    for p1, p2 in pairs:
+        c1 = greedy_decode(params, n_heads, p1, n_tokens)
+        c2 = greedy_decode(params, n_heads, p2, n_tokens)
+        if c1 == c2:
+            matches += 1
+
+    return matches / len(pairs)
 
 # Step 27 - detour_robustness (not yet solved)
 # TODO: implement
