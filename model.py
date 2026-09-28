@@ -1166,8 +1166,54 @@ def verify_draft(params: dict, n_heads: int, prefix: list, next_token: int, draf
 
     return n_accepted, correction
 
-# Step 31 - self_speculative_generate (not yet solved)
-# TODO: implement
+# Step 31 - self_speculative_generate
+import torch
+
+def self_speculative_generate(params: dict, dyn: dict, n_heads: int, prefix: list,
+                              n_tokens: int, max_draft: int) -> dict:
+    """
+    Generate n_tokens tokens with variable-length self-speculative decoding.
+
+    Args:
+        params: GPT parameter dict
+        dyn: dynamics parameter dict
+        n_heads: number of attention heads
+        prefix: starting token ids
+        n_tokens: number of tokens to generate
+        max_draft: maximum number of drafted tokens per cycle
+
+    Returns:
+        dict with 'tokens' (generated tokens, length n_tokens),
+        'cycles' (number of loop iterations), and
+        'accepted' (n_accepted for each cycle).
+    """
+    seq = list(prefix)
+    P0 = len(prefix)
+    max_len = params['wpe'].shape[0]
+
+    cycles = 0
+    accepted = []
+
+    while len(seq) - P0 < n_tokens:
+        with torch.no_grad():
+            x = torch.tensor([seq], dtype=torch.long)
+            h_last = gpt_hidden_states(x, params, n_heads)[0, -1]
+
+        k = max(0, min(max_draft, max_len - len(seq) - 2))
+
+        next_token, drafts = draft_from_latent(h_last, dyn, params, k)
+        n_accepted, correction = verify_draft(params, n_heads, seq, next_token, drafts)
+
+        seq.extend([next_token] + drafts[:n_accepted] + [correction])
+
+        accepted.append(n_accepted)
+        cycles += 1
+
+    return {
+        'tokens': seq[P0:][:n_tokens],
+        'cycles': cycles,
+        'accepted': accepted,
+    }
 
 # Step 32 - speculative_stats (not yet solved)
 # TODO: implement
