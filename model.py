@@ -1129,8 +1129,42 @@ def draft_from_latent(h_last, dyn: dict, params: dict, max_draft: int) -> tuple:
 
     return next_token, drafts
 
-# Step 30 - verify_draft (not yet solved)
-# TODO: implement
+# Step 30 - verify_draft
+import torch
+
+def verify_draft(params: dict, n_heads: int, prefix: list, next_token: int, drafts: list) -> tuple:
+    """
+    Check a draft with a single transformer pass.
+
+    Args:
+        params: GPT parameter dict
+        n_heads: number of attention heads
+        prefix: verified token ids so far
+        next_token: the transformer's own (free) next token
+        drafts: tokens proposed by the latent dynamics model
+
+    Returns:
+        (n_accepted, correction): number of drafts accepted (int), and the
+        transformer's own token right after the last accepted one (int).
+    """
+    P = len(prefix)
+    seq = list(prefix) + [next_token] + list(drafts)
+
+    with torch.no_grad():
+        x = torch.tensor([seq], dtype=torch.long)
+        h = gpt_hidden_states(x, params, n_heads)
+        preds = torch.argmax(output_head(h[0], params), dim=-1)  # (len(seq),)
+
+    n_accepted = 0
+    for j, d in enumerate(drafts):
+        if int(preds[P + j]) == d:
+            n_accepted += 1
+        else:
+            break
+
+    correction = int(preds[P + n_accepted])
+
+    return n_accepted, correction
 
 # Step 31 - self_speculative_generate (not yet solved)
 # TODO: implement
