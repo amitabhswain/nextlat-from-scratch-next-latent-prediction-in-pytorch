@@ -998,8 +998,63 @@ def sequence_compression(dataset: dict, params: dict, n_heads: int, n_tokens: in
 
     return matches / len(pairs)
 
-# Step 27 - detour_robustness (not yet solved)
-# TODO: implement
+# Step 27 - detour_robustness
+import numpy as np
+
+def detour_robustness(params: dict, n_heads: int, G: int, max_steps: int, n_trials: int,
+                      detour_prob: float = 0.75, seed: int = 0) -> float:
+    """
+    Fraction of episodes in which the model still reaches the goal by legal
+    moves when its choices are replaced by random legal moves with
+    probability detour_prob.
+
+    Args:
+        params: GPT parameter dict
+        n_heads: number of attention heads
+        G: grid size
+        max_steps: step budget per episode
+        n_trials: number of episodes
+        detour_prob: probability of replacing the model's move with a random legal move
+        seed: RNG seed
+
+    Returns:
+        Success fraction as a float.
+    """
+    rng = np.random.default_rng(seed)
+
+    def cell(pos):
+        return 4 + pos[0] * G + pos[1]
+
+    successes = 0
+
+    for _ in range(n_trials):
+        start = tuple(int(v) for v in rng.integers(0, G, size=2))
+        goal = tuple(int(v) for v in rng.integers(0, G, size=2))
+
+        seq = [cell(start), cell(goal)]
+        pos = start
+        failed = False
+
+        for _ in range(max_steps):
+            if pos == goal:
+                break
+
+            if rng.random() < detour_prob:
+                tok = int(rng.choice(legal_actions(pos, G)))
+            else:
+                tok = greedy_decode(params, n_heads, seq, 1)[0]
+
+            if tok not in legal_actions(pos, G):
+                failed = True
+                break
+
+            pos, _ = grid_step(pos, tok, G)
+            seq.append(tok)
+
+        if not failed and pos == goal:
+            successes += 1
+
+    return successes / n_trials
 
 # Step 28 - world_model_report (not yet solved)
 # TODO: implement
