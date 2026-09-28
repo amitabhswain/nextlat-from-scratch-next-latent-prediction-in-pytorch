@@ -833,8 +833,31 @@ def greedy_decode(params: dict, n_heads: int, prefix: list, n_tokens: int) -> li
 
     return generated
 
-# Step 23 - effective_rank (not yet solved)
-# TODO: implement
+# Step 23 - effective_rank
+import torch
+
+def effective_rank(H, tol: float = 1e-12) -> float:
+    """
+    Roy-Vetterli effective rank: exp of the Shannon entropy (natural log)
+    of the normalized singular values above tol.
+
+    Args:
+        H: (N, D) matrix (e.g. stacked hidden states)
+        tol: singular values <= tol are discarded
+
+    Returns:
+        Python float; 0.0 if no singular value survives.
+    """
+    s = torch.linalg.svdvals(H)
+    s = s[s > tol]
+
+    if s.numel() == 0:
+        return 0.0
+
+    p = s / s.sum()
+    entropy = -(p * p.log()).sum()
+
+    return float(torch.exp(entropy))
 
 # Step 24 - eval_hidden_states (not yet solved)
 # TODO: implement
