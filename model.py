@@ -1215,6 +1215,28 @@ def self_speculative_generate(params: dict, dyn: dict, n_heads: int, prefix: lis
         'accepted': accepted,
     }
 
-# Step 32 - speculative_stats (not yet solved)
-# TODO: implement
+# Step 32 - speculative_stats
+def speculative_stats(result: dict, n_tokens: int) -> dict:
+    """
+    Summarize a self-speculative run.
+
+    Args:
+        result: dict from self_speculative_generate with 'tokens', 'cycles', 'accepted'
+        n_tokens: number of tokens that were requested
+
+    Returns:
+        dict with 'cycles' (int), 'mean_accepted' (float, 4 decimals),
+        'speedup' (float, 4 decimals).
+    """
+    cycles = result['cycles']
+    accepted = result['accepted']
+
+    mean_accepted = sum(accepted) / len(accepted) if len(accepted) > 0 else 0.0
+    speedup = n_tokens / cycles if cycles > 0 else 0.0
+
+    return {
+        'cycles': cycles,
+        'mean_accepted': round(mean_accepted, 4),
+        'speedup': round(speedup, 4),
+    }
 
