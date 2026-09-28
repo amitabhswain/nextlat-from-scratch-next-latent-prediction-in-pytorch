@@ -884,8 +884,65 @@ def eval_hidden_states(dataset: dict, params: dict, n_heads: int, n_rows: int):
 
     return h[mask_x]
 
-# Step 25 - valid_move_rate (not yet solved)
-# TODO: implement
+# Step 25 - valid_move_rate
+import torch
+
+def valid_move_rate(dataset: dict, params: dict, n_heads: int, n_rows: int) -> float:
+    """
+    Fraction of top-1 next-token predictions that are legal under the true
+    world model, scored at positions t >= 1 with real targets.
+
+    Args:
+        dataset: dict with 'tokens', 'mask', 'states', 'G'
+        params: GPT parameter dict
+        n_heads: number of attention heads
+        n_rows: number of sequences to evaluate (from the start)
+
+    Returns:
+        Float in [0, 1]; 0.0 if nothing is scored.
+    """
+    G = dataset['G']
+    EOS = 4 + G * G
+
+    tokens = dataset['tokens'][:n_rows]
+    x = tokens[:, :-1]
+    y_mask = dataset['mask'][:n_rows, 1:]
+    pos = dataset['states'][:n_rows, :-1]
+    goal = tokens[:, 1] - 4  # goal cell index per row
+
+    with torch.no_grad():
+        h = gpt_hidden_states(x, params, n_heads)
+        logits = output_head(h, params)
+        pred = logits.argmax(dim=-1)  # (n_rows, T-1)
+
+    n_rows_actual, L = pred.shape
+    legal_count = 0
+    total = 0
+
+    for i in range(n_rows_actual):
+        g = int(goal[i])
+        for t in range(1, L):
+            if not bool(y_mask[i, t]):
+                continue
+
+            p_idx = int(pos[i, t])
+            p = int(pred[i, t])
+            total += 1
+
+            if p_idx == g:
+                # Standing on the goal: only EOS is legal
+                if p == EOS:
+                    legal_count += 1
+            else:
+                # Elsewhere: must be an action that stays on the grid
+                cell = divmod(p_idx, G)
+                if p in legal_actions(cell, G):
+                    legal_count += 1
+
+    if total == 0:
+        return 0.0
+
+    return legal_count / total
 
 # Step 26 - sequence_compression (not yet solved)
 # TODO: implement
