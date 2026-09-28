@@ -1096,8 +1096,38 @@ def world_model_report(dataset: dict, params: dict, n_heads: int, n_rows: int, n
         'detour_robustness': round(detour, 4),
     }
 
-# Step 29 - draft_from_latent (not yet solved)
-# TODO: implement
+# Step 29 - draft_from_latent
+import torch
+
+def draft_from_latent(h_last, dyn: dict, params: dict, max_draft: int) -> tuple:
+    """
+    Draft tokens by rolling the latent dynamics forward from the last hidden state.
+
+    Args:
+        h_last: (d,) final hidden state at the last position of the verified sequence
+        dyn: dynamics parameter dict
+        params: GPT parameter dict (used for 'wte' and the output head)
+        max_draft: number of extra draft tokens to propose
+
+    Returns:
+        (next_token, drafts): next_token is the transformer's own prediction (int),
+        drafts is a list of max_draft ints proposed by the dynamics model.
+    """
+    drafts = []
+
+    with torch.no_grad():
+        # Free token: the transformer's own prediction from h_last
+        next_token = int(torch.argmax(output_head(h_last, params)))
+
+        # Step the latent forward using the token we just chose
+        h = latent_transition(h_last, params['wte'][next_token], dyn)
+
+        for _ in range(max_draft):
+            tok = int(torch.argmax(output_head(h, params)))
+            drafts.append(tok)
+            h = latent_transition(h, params['wte'][tok], dyn)
+
+    return next_token, drafts
 
 # Step 30 - verify_draft (not yet solved)
 # TODO: implement
